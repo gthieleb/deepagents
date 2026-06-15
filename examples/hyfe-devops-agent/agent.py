@@ -27,9 +27,9 @@ from tools.slack_tools import (
     evaluate_slack_vote,
 )
 
-# Lazy agent construction so that `import agent` succeeds without requiring
-# runtime credentials. LangGraph dev accesses the `agent` attribute, which
-# triggers construction on first use.
+# Build the graph eagerly when credentials are available so `langgraph dev`
+# finds the `agent` export in `vars(agent)`. Keep a lazy fallback via
+# `__getattr__` so `import agent` still succeeds when `ZAI_API_KEY` is unset.
 _AGENT: Any | None = None
 
 _SUBAGENT_SPECS: dict[str, dict[str, Any] | None] = {
@@ -155,6 +155,10 @@ def _build_agent() -> Any:
         ],
     )
     return _AGENT
+
+
+if os.getenv("ZAI_API_KEY"):
+    agent = _build_agent()
 
 
 def __getattr__(name: str) -> Any:
