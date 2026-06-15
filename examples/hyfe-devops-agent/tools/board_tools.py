@@ -75,7 +75,9 @@ def _parse_checklist(body: str | None) -> list[dict[str, Any]]:
             continue
         done = match.group("done").lower() == "x"
         level = len(indent) // 2
-        items.append({"text": text, "done": done, "level": level, "indent": len(indent)})
+        items.append(
+            {"text": text, "done": done, "level": level, "indent": len(indent)}
+        )
     return items
 
 
@@ -84,7 +86,9 @@ def _status_category(status_name: str | None) -> str | None:
     if not status_name:
         return None
     normalized = status_name.lower().strip()
-    if normalized in _IN_PROGRESS_NAMES or any(n in normalized for n in _IN_PROGRESS_NAMES):
+    if normalized in _IN_PROGRESS_NAMES or any(
+        n in normalized for n in _IN_PROGRESS_NAMES
+    ):
         return "in_progress"
     if normalized in _IN_SCOPE_NAMES or any(n in normalized for n in _IN_SCOPE_NAMES):
         return "in_scope"
@@ -176,7 +180,9 @@ async def _load_project_state(
     """
     gh = _github()
     if gh is None:
-        return _err("GITHUB_TOKEN is not set. Configure GITHUB_TOKEN to use board tools.")
+        return _err(
+            "GITHUB_TOKEN is not set. Configure GITHUB_TOKEN to use board tools."
+        )
 
     items: list[dict[str, Any]] = []
     project_info: dict[str, Any] = {}
@@ -274,11 +280,13 @@ def _evaluate_wip(
 
 
 @tool
-async def get_board_state(project_number: int,
-*,
-org: str,
-max_in_scope: int = 10,
-max_in_progress: int = 3,) -> str:
+async def get_board_state(
+    project_number: int,
+    *,
+    org: str,
+    max_in_scope: int = 10,
+    max_in_progress: int = 3,
+) -> str:
     """Return the current state of a GitHub Projects v2 board.
 
     Args:
@@ -321,11 +329,13 @@ max_in_progress: int = 3,) -> str:
 
 
 @tool
-async def check_wip_limits(*,
-project_number: int,
-org: str,
-max_in_scope: int = 10,
-max_in_progress: int = 3,) -> str:
+async def check_wip_limits(
+    *,
+    project_number: int,
+    org: str,
+    max_in_scope: int = 10,
+    max_in_progress: int = 3,
+) -> str:
     """Check whether a GitHub Projects v2 board exceeds configured WIP limits.
 
     Args:
@@ -386,11 +396,7 @@ async def list_blocked_tickets(*, project_number: int, org: str) -> str:
         status = (item.get("status") or "").lower()
         labels = {lbl.lower() for lbl in item.get("labels", [])}
         title = (item.get("title") or "").lower()
-        if (
-            status == "blocked"
-            or "blocked" in labels
-            or title.startswith("blocked:")
-        ):
+        if status == "blocked" or "blocked" in labels or title.startswith("blocked:"):
             blocked.append(item)
 
     return json.dumps(
@@ -456,12 +462,14 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
 
 
 @tool
-async def move_ticket(issue_number: int,
-target_status: str,
-*,
-project_number: int,
-org: str,
-repo: str,) -> str:
+async def move_ticket(
+    issue_number: int,
+    target_status: str,
+    *,
+    project_number: int,
+    org: str,
+    repo: str,
+) -> str:
     """Move a GitHub issue to a target status column in a Projects v2 board.
 
     The issue is added to the project if it is not already present. If the issue
@@ -522,9 +530,7 @@ repo: str,) -> str:
     if not status_field:
         return _err(f"No Status field found on project #{project_number}.")
     if not target_option_id:
-        return _err(
-            f"Status '{target_status}' not found on project #{project_number}."
-        )
+        return _err(f"Status '{target_status}' not found on project #{project_number}.")
 
     state = await _load_project_state(project_number, org, include_fields=False)
     if isinstance(state, str):
@@ -629,7 +635,9 @@ async def parse_subtasks(issue_number: int, *, org: str, repo: str) -> str:
     """
     gh = _github()
     if gh is None:
-        return _err("GITHUB_TOKEN is not set. Configure GITHUB_TOKEN to parse subtasks.")
+        return _err(
+            "GITHUB_TOKEN is not set. Configure GITHUB_TOKEN to parse subtasks."
+        )
 
     result = await gh.async_graphql(
         _ISSUE_BODY_QUERY,
@@ -707,12 +715,14 @@ mutation($issueId: ID!, $body: String!) {
 
 
 @tool
-async def create_subtask(parent_issue_number: int,
-title: str,
-*,
-org: str,
-repo: str,
-body: str = "",) -> str:
+async def create_subtask(
+    parent_issue_number: int,
+    title: str,
+    *,
+    org: str,
+    repo: str,
+    body: str = "",
+) -> str:
     """Create a subtask issue and link it to a parent GitHub issue.
 
     Uses the ``addSubIssue`` GraphQL mutation when available; otherwise falls
@@ -730,7 +740,9 @@ body: str = "",) -> str:
     """
     gh = _github()
     if gh is None:
-        return _err("GITHUB_TOKEN is not set. Configure GITHUB_TOKEN to create subtasks.")
+        return _err(
+            "GITHUB_TOKEN is not set. Configure GITHUB_TOKEN to create subtasks."
+        )
 
     parent_result = await gh.async_graphql(
         _CREATE_SUBTASK_QUERIES["repo_and_parent"],
@@ -851,11 +863,13 @@ def _parse_github_timestamp(value: str | None) -> datetime | None:
 
 
 @tool
-async def get_sprint_velocity(*,
-org: str,
-repo: str,
-project_number: int,
-sprint_count: int = 3,) -> str:
+async def get_sprint_velocity(
+    *,
+    org: str,
+    repo: str,
+    project_number: int,
+    sprint_count: int = 3,
+) -> str:
     """Compute recent sprint velocity from closed project items and subtasks.
 
     Sprints are defined as fixed 14-day windows counting backward from today.
@@ -880,7 +894,12 @@ sprint_count: int = 3,) -> str:
     while True:
         result = await gh.async_graphql(
             _SPRINT_VELOCITY_QUERY,
-            variables={"org": org, "number": project_number, "first": 100, "after": cursor},
+            variables={
+                "org": org,
+                "number": project_number,
+                "first": 100,
+                "after": cursor,
+            },
         )
         err = _check_graphql_errors(result)
         if err:
@@ -939,8 +958,14 @@ sprint_count: int = 3,) -> str:
                     (item["closed_at"] - item["created_at"]).total_seconds() / 86400
                 )
 
-        avg_completion = round(sum(completion_rates) / len(completion_rates), 2) if completion_rates else 1.0
-        avg_cycle = round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else 0.0
+        avg_completion = (
+            round(sum(completion_rates) / len(completion_rates), 2)
+            if completion_rates
+            else 1.0
+        )
+        avg_cycle = (
+            round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else 0.0
+        )
 
         sprints.append(
             {
@@ -955,7 +980,11 @@ sprint_count: int = 3,) -> str:
         )
         closed_per_sprint.append(closed_issues)
 
-    overall_velocity = round(sum(closed_per_sprint) / len(closed_per_sprint), 2) if closed_per_sprint else 0.0
+    overall_velocity = (
+        round(sum(closed_per_sprint) / len(closed_per_sprint), 2)
+        if closed_per_sprint
+        else 0.0
+    )
     trend = "stable"
     if len(closed_per_sprint) >= 2:
         if closed_per_sprint[0] > closed_per_sprint[1]:

@@ -81,7 +81,7 @@ def _error_response(message: str) -> str:
 
 def _check_token() -> tuple[str | None, str | None]:
     """Validate that ``SLACK_BOT_TOKEN`` is configured."""
-    token = os.environ.get("SLACK_BOT_TOKEN") or os.getenv("SLACK_BOT_TOKEN")
+    token = os.getenv("SLACK_BOT_TOKEN")
     if token:
         return token, None
     return None, _error_response(
@@ -94,7 +94,7 @@ def _resolve_channel(channel: str) -> str:
     """Use the provided channel or fall back to ``SLACK_DEFAULT_CHANNEL``."""
     if channel:
         return channel
-    return os.environ.get("SLACK_DEFAULT_CHANNEL", "")
+    return os.getenv("SLACK_DEFAULT_CHANNEL", "")
 
 
 def _slack_client(token: str) -> httpx.AsyncClient:
@@ -117,7 +117,10 @@ def _slack_api_error(data: dict[str, Any]) -> str:
 
 async def _bot_user_id(client: httpx.AsyncClient) -> str | None:
     """Return the bot's own user ID via ``auth.test``."""
-    response = await client.post("auth.test")
+    try:
+        response = await client.post("auth.test")
+    except httpx.HTTPError:
+        return None
     data = response.json()
     if data.get("ok"):
         return data.get("user_id")
@@ -146,21 +149,26 @@ async def send_notification(channel: str, message: str) -> str:
         return _error_response("channel is required (or set SLACK_DEFAULT_CHANNEL).")
 
     async with _slack_client(token) as client:
-        response = await client.post(
-            "chat.postMessage",
-            json={"channel": channel, "text": message},
-        )
+        try:
+            response = await client.post(
+                "chat.postMessage",
+                json={"channel": channel, "text": message},
+            )
+        except httpx.HTTPError as exc:
+            return json.dumps({"error": f"Slack API request failed: {exc}"})
         data = response.json()
 
     if not data.get("ok"):
         return _slack_api_error(data)
 
-    return json.dumps({
-        "ok": True,
-        "channel": data.get("channel"),
-        "ts": data.get("ts"),
-        "message": "Notification sent.",
-    })
+    return json.dumps(
+        {
+            "ok": True,
+            "channel": data.get("channel"),
+            "ts": data.get("ts"),
+            "message": "Notification sent.",
+        }
+    )
 
 
 @tool
@@ -196,25 +204,30 @@ async def post_sprint_summary(*, channel: str, summary: str) -> str:
     ]
 
     async with _slack_client(token) as client:
-        response = await client.post(
-            "chat.postMessage",
-            json={
-                "channel": channel,
-                "text": summary,
-                "blocks": blocks,
-            },
-        )
+        try:
+            response = await client.post(
+                "chat.postMessage",
+                json={
+                    "channel": channel,
+                    "text": summary,
+                    "blocks": blocks,
+                },
+            )
+        except httpx.HTTPError as exc:
+            return json.dumps({"error": f"Slack API request failed: {exc}"})
         data = response.json()
 
     if not data.get("ok"):
         return _slack_api_error(data)
 
-    return json.dumps({
-        "ok": True,
-        "channel": data.get("channel"),
-        "ts": data.get("ts"),
-        "message": "Sprint summary posted.",
-    })
+    return json.dumps(
+        {
+            "ok": True,
+            "channel": data.get("channel"),
+            "ts": data.get("ts"),
+            "message": "Sprint summary posted.",
+        }
+    )
 
 
 @tool
@@ -248,9 +261,7 @@ async def create_slack_vote(question: str, options: list[str], *, channel: str) 
             f"Too many options: {len(options)} (maximum {_MAX_OPTIONS})."
         )
 
-    emoji_mapping = {
-        option: _EMOJI_PALETTE[i] for i, option in enumerate(options)
-    }
+    emoji_mapping = {option: _EMOJI_PALETTE[i] for i, option in enumerate(options)}
 
     lines = [f"*{question}*", ""]
     for option, emoji_name in emoji_mapping.items():
@@ -258,10 +269,13 @@ async def create_slack_vote(question: str, options: list[str], *, channel: str) 
     text = "\n".join(lines)
 
     async with _slack_client(token) as client:
-        post_response = await client.post(
-            "chat.postMessage",
-            json={"channel": channel, "text": text},
-        )
+        try:
+            post_response = await client.post(
+                "chat.postMessage",
+                json={"channel": channel, "text": text},
+            )
+        except httpx.HTTPError as exc:
+            return json.dumps({"error": f"Slack API request failed: {exc}"})
         post_data = post_response.json()
 
         if not post_data.get("ok"):
@@ -271,14 +285,17 @@ async def create_slack_vote(question: str, options: list[str], *, channel: str) 
         reaction_errors: list[str] = []
 
         for emoji_name in emoji_mapping.values():
-            reaction_response = await client.post(
-                "reactions.add",
-                json={
-                    "channel": post_data.get("channel", channel),
-                    "timestamp": timestamp,
-                    "name": emoji_name,
-                },
-            )
+            try:
+                reaction_response = await client.post(
+                    "reactions.add",
+                    json={
+                        "channel": post_data.get("channel", channel),
+                        "timestamp": timestamp,
+                        "name": emoji_name,
+                    },
+                )
+            except httpx.HTTPError as exc:
+                return json.dumps({"error": f"Slack API request failed: {exc}"})
             reaction_data = reaction_response.json()
             if not reaction_data.get("ok"):
                 err = reaction_data.get("error", "unknown")
@@ -296,9 +313,7 @@ async def create_slack_vote(question: str, options: list[str], *, channel: str) 
     }
     if reaction_errors:
         result["ok"] = False
-        result["error"] = "Failed to add some reactions: " + ", ".join(
-            reaction_errors
-        )
+        result["error"] = "Failed to add some reactions: " + ", ".join(reaction_errors)
 
     return json.dumps(result)
 
@@ -337,14 +352,17 @@ async def evaluate_slack_vote(
     async with _slack_client(token) as client:
         bot_id = await _bot_user_id(client)
 
-        response = await client.get(
-            "reactions.get",
-            params={
-                "channel": channel,
-                "timestamp": message_ts,
-                "full": "true",
-            },
-        )
+        try:
+            response = await client.get(
+                "reactions.get",
+                params={
+                    "channel": channel,
+                    "timestamp": message_ts,
+                    "full": "true",
+                },
+            )
+        except httpx.HTTPError as exc:
+            return json.dumps({"error": f"Slack API request failed: {exc}"})
         data = response.json()
 
     if not data.get("ok"):
@@ -395,12 +413,14 @@ async def evaluate_slack_vote(
 
     total_voters = sum(counts)
 
-    return json.dumps({
-        "ok": True,
-        "channel": channel,
-        "ts": message_ts,
-        "counts": count_dict,
-        "winners": winners,
-        "tie": len(winners) > 1,
-        "total_voters": total_voters,
-    })
+    return json.dumps(
+        {
+            "ok": True,
+            "channel": channel,
+            "ts": message_ts,
+            "counts": count_dict,
+            "winners": winners,
+            "tie": len(winners) > 1,
+            "total_voters": total_voters,
+        }
+    )

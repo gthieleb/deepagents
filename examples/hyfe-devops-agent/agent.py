@@ -49,9 +49,7 @@ def _build_agent() -> Any:
     if _AGENT is not None:
         return _AGENT
 
-    system_prompt = _load_prompt(
-        os.path.join(os.path.dirname(__file__), "AGENTS.md")
-    )
+    system_prompt = _load_prompt(os.path.join(os.path.dirname(__file__), "AGENTS.md"))
     sprint_coordinator_prompt = _load_prompt(
         os.path.join(
             os.path.dirname(__file__), "subagents", "sprint-coordinator", "AGENTS.md"
@@ -168,8 +166,6 @@ def __getattr__(name: str) -> Any:
         _build_agent()
         spec = _SUBAGENT_SPECS.get(name)
         if spec is None:
-            raise AttributeError(
-                f"module {__name__!r} has not initialized {name!r}"
-            )
+            raise AttributeError(f"module {__name__!r} has not initialized {name!r}")
         return spec
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
