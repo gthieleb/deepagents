@@ -11,10 +11,32 @@ from langchain_openai import ChatOpenAI
 from deepagents import create_deep_agent
 from langfuse.langchain import CallbackHandler
 
+from tools.board_tools import (
+    get_board_state,
+    move_ticket,
+    check_wip_limits,
+    list_blocked_tickets,
+    parse_subtasks,
+    create_subtask,
+    get_sprint_velocity,
+)
+from tools.slack_tools import (
+    send_notification,
+    post_sprint_summary,
+    create_slack_vote,
+    evaluate_slack_vote,
+)
+
 # Lazy agent construction so that `import agent` succeeds without requiring
 # runtime credentials. LangGraph dev accesses the `agent` attribute, which
 # triggers construction on first use.
 _AGENT: Any | None = None
+
+_SUBAGENT_SPECS: dict[str, dict[str, Any] | None] = {
+    "sprint_coordinator_subagent": None,
+    "infra_reviewer_subagent": None,
+    "release_manager_subagent": None,
+}
 
 
 def _load_prompt(path: str) -> str:
@@ -67,12 +89,19 @@ def _build_agent() -> Any:
         "name": "sprint-coordinator",
         "model": subagent_model,
         "description": (
-            "Analyzes sprint and board health using GitHub Projects tools. "
-            "Returns structured sprint status with WIP violations, blocked items, "
-            "subtask completion rates, and velocity trends."
+            "Analyzes sprint and board health using GitHub Projects tools including "
+            "subtask parsing and velocity tracking. Returns structured sprint status "
+            "with WIP violations, blocked items, subtask completion rates, and "
+            "velocity trends."
         ),
         "system_prompt": sprint_coordinator_prompt,
-        "tools": [],
+        "tools": [
+            get_board_state,
+            check_wip_limits,
+            list_blocked_tickets,
+            parse_subtasks,
+            get_sprint_velocity,
+        ],
     }
 
     infra_reviewer_subagent = {
@@ -96,8 +125,12 @@ def _build_agent() -> Any:
             "and prerequisites."
         ),
         "system_prompt": release_manager_prompt,
-        "tools": [],
+        "tools": [get_board_state, parse_subtasks, send_notification],
     }
+
+    _SUBAGENT_SPECS["sprint_coordinator_subagent"] = sprint_coordinator_subagent
+    _SUBAGENT_SPECS["infra_reviewer_subagent"] = infra_reviewer_subagent
+    _SUBAGENT_SPECS["release_manager_subagent"] = release_manager_subagent
 
     _AGENT = create_deep_agent(
         model=model,
@@ -107,6 +140,19 @@ def _build_agent() -> Any:
             infra_reviewer_subagent,
             release_manager_subagent,
         ],
+        tools=[
+            get_board_state,
+            move_ticket,
+            check_wip_limits,
+            list_blocked_tickets,
+            parse_subtasks,
+            create_subtask,
+            get_sprint_velocity,
+            send_notification,
+            post_sprint_summary,
+            create_slack_vote,
+            evaluate_slack_vote,
+        ],
     )
     return _AGENT
 
@@ -114,4 +160,12 @@ def _build_agent() -> Any:
 def __getattr__(name: str) -> Any:
     if name == "agent":
         return _build_agent()
+    if name in _SUBAGENT_SPECS:
+        _build_agent()
+        spec = _SUBAGENT_SPECS.get(name)
+        if spec is None:
+            raise AttributeError(
+                f"module {__name__!r} has not initialized {name!r}"
+            )
+        return spec
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
