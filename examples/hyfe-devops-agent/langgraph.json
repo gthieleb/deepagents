@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "hyfe-devops-agent": "./agent.py:agent"
+  },
+  "env": ".env"
+}
