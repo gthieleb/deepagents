@@ -1028,7 +1028,7 @@ wheels = [
 
 [[package]]
 name = "deepagents-code"
-version = "0.1.14"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -2192,16 +2192,16 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "cachetools", marker = "python_full_version < '3.14'" },
-    { name = "certifi", marker = "python_full_version < '3.14'" },
-    { name = "httpx", marker = "python_full_version < '3.14'" },
-    { name = "ibm-cos-sdk", marker = "python_full_version < '3.14'" },
-    { name = "lomond", marker = "python_full_version < '3.14'" },
-    { name = "packaging", marker = "python_full_version < '3.14'" },
-    { name = "pandas", marker = "python_full_version < '3.14'" },
-    { name = "requests", marker = "python_full_version < '3.14'" },
-    { name = "tabulate", marker = "python_full_version < '3.14'" },
-    { name = "urllib3", marker = "python_full_version < '3.14'" },
+    { name = "cachetools" },
+    { name = "certifi" },
+    { name = "httpx" },
+    { name = "ibm-cos-sdk" },
+    { name = "lomond" },
+    { name = "packaging" },
+    { name = "pandas" },
+    { name = "requests" },
+    { name = "tabulate" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/b4/5d9d54ffd2bfadd35d5f5e1bd25bf94eb33a3b2972cad2449ca1fb6ed4b8/ibm_watsonx_ai-1.5.1.tar.gz", hash = "sha256:b03948afee418c94151c8146c0d8b7b1808c80359dbc58befe12355fffbb4c0d", size = 707589, upload-time = "2026-01-29T09:15:03.531Z" }
 wheels = [
@@ -2216,16 +2216,16 @@ resolution-markers = [
     "python_full_version >= '3.14'",
 ]
 dependencies = [
-    { name = "cachetools", marker = "python_full_version >= '3.14'" },
-    { name = "certifi", marker = "python_full_version >= '3.14'" },
-    { name = "httpx", marker = "python_full_version >= '3.14'" },
-    { name = "ibm-cos-sdk", marker = "python_full_version >= '3.14'" },
-    { name = "lomond", marker = "python_full_version >= '3.14'" },
-    { name = "packaging", marker = "python_full_version >= '3.14'" },
-    { name = "pandas", marker = "python_full_version >= '3.14'" },
-    { name = "requests", marker = "python_full_version >= '3.14'" },
-    { name = "tabulate", marker = "python_full_version >= '3.14'" },
-    { name = "urllib3", marker = "python_full_version >= '3.14'" },
+    { name = "cachetools" },
+    { name = "certifi" },
+    { name = "httpx" },
+    { name = "ibm-cos-sdk" },
+    { name = "lomond" },
+    { name = "packaging" },
+    { name = "pandas" },
+    { name = "requests" },
+    { name = "tabulate" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ae/8c/15c3344d064e3267e31561e1ad2df0f8f0a01c5f14a2ed2436d0bd7ce445/ibm_watsonx_ai-1.5.13.tar.gz", hash = "sha256:63a38fa0ea5ac604e703e3d76888742528d046f376cbaa16762b4b98b0cec973", size = 734189, upload-time = "2026-06-03T08:38:00.984Z" }
 wheels = [
