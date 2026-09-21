@@ -132,3 +132,48 @@ yarn dev
 ```
 
 Open the UI, go to Settings, set the Assistant ID to `hyfe-devops-agent`, and point the deployment URL to `http://localhost:2024` (or `<your-server-ip>:2024`). You can then send DevOps questions through the chat interface.
+
+### Testing
+
+This project uses **DeepEval** for evaluation metrics and **Langfuse** for tracing — no LangSmith required.
+
+All test infrastructure is under `tests/`:
+
+| Directory | Contents | API Keys Needed |
+|-----------|----------|-----------------|
+| `tests/unit_tests/` | `GenericFakeChatModel` tests with stub tools | None |
+| `tests/integration_tests/` | DeepEval evals with real LLM | `ZAI_API_KEY` |
+| `tests/datasets/` | Synthetic golden dataset + integrity checks | `ZAI_API_KEY` (for generation) |
+
+**Quickstart:**
+
+```bash
+# Unit tests — zero network I/O, zero API keys
+uv sync --group test
+uv run --group test pytest tests/unit_tests/ -v
+
+# Integration evals — requires Z.AI GLM API key
+ZAI_API_KEY=$KEY uv run --group test pytest tests/integration_tests/ -m eval -v
+
+# Synthetic data integrity check
+uv run --group test pytest tests/datasets/ -v
+
+# Regenerate synthetic dataset
+uv run --group test python tests/datasets/generate_synthetic.py --force
+
+# Full CI gate
+make test-hyfe-devops
+```
+
+**Test structure:**
+
+- **Unit tests** (`tests/unit_tests/`) — Exercise the agent with `FixedGenericFakeChatModel` and 11 synchronous stub tools. The stubs replace real GitHub GraphQL and Slack Web API calls with deterministic JSON responses. Tests run instantly, require no credentials, and prove the agent selects and executes the correct tools for each query.
+- **Integration evals** (`tests/integration_tests/`) — Run the agent with stub tools but a real `glm-4.5` model through the Z.AI programming endpoint. DeepEval verifies tool-correctness (did the agent call the expected tools?) and task completion. Tools are still stubbed — no real GitHub or Slack calls.
+- **Synthetic datasets** (`tests/datasets/`) — Pre-generated `Golden` test cases covering sprint status, blocked tickets, release readiness, and Slack voting. The integrity check validates each golden has an input, expected output, and valid expected tool names matching the 11 stub tools.
+
+**Adding a new test case:**
+
+1. Add a new `Golden` to `tests/datasets/synthetic_goldens.json` with `input`, `expected_output`, and `expected_tools`.
+2. Add a new test function in `tests/unit_tests/test_tool_selection.py` using `FixedGenericFakeChatModel` to script the expected tool calls.
+3. Add a new eval in `tests/integration_tests/test_workflow_evals.py` with `@pytest.mark.eval`.
+4. Run all tests: `make test-hyfe-devops`.

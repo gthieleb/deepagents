@@ -1,0 +1,59 @@
+name: Test hyfe-devops-agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/hyfe-devops-agent/**'
+  pull_request:
+    paths:
+      - 'examples/hyfe-devops-agent/**'
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_FROZEN: "true"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/hyfe-devops-agent
+
+    steps:
+      - name: "📋 Checkout Code"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: "🐍 Set up Python ${{ env.PYTHON_VERSION }} + uv"
+        uses: "./.github/actions/uv_setup"
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache-suffix: test-hyfe-devops
+          working-directory: examples/hyfe-devops-agent
+
+      - name: "📦 Install dependencies"
+        run: uv sync --group test
+
+      - name: "🧪 Unit tests (no API keys)"
+        run: uv run --group test pytest tests/unit_tests/ -v
+
+      - name: "🔍 Synthetic data integrity check"
+        run: uv run --group test pytest tests/datasets/ -v
+
+      - name: "🚀 Integration evals (requires ZAI_API_KEY)"
+        env:
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+        run: |
+          if [ -n "$ZAI_API_KEY" ]; then
+            uv run --group test pytest tests/integration_tests/ -m eval -v
+          else
+            echo "SKIP: ZAI_API_KEY not set"
+          fi
+
+      - name: "🛡️ Ensure no LangSmith references"
+        run: |
+          if grep -r -i "langsmith" . --include="*.py" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.git 2>/dev/null; then
+            echo "ERROR: LangSmith references found!"
+            exit 1
+          fi
+          echo "CLEAN: No LangSmith references"

@@ -1,0 +1,34 @@
+[
+  {
+    "input": "What's the current sprint status and are there WIP limit violations?",
+    "expected_output": "The sprint has 5 items in progress, no WIP limit violations, and one blocked ticket awaiting infrastructure approval.",
+    "expected_tools": [
+      "check_wip_limits",
+      "get_board_state"
+    ]
+  },
+  {
+    "input": "Which tickets are blocked and what needs to happen to unblock them?",
+    "expected_output": "Issue #43 'Blocked: roll out new ingress' is blocked on platform-team approval; escalate to the platform team and update the ticket once unblocked.",
+    "expected_tools": [
+      "list_blocked_tickets"
+    ]
+  },
+  {
+    "input": "Is the release ready? Check for blocking issues and open PRs.",
+    "expected_output": "The release is not ready because PR #42 is still open and issue #43 is blocked; notify the team and revisit once the blockers are cleared.",
+    "expected_tools": [
+      "get_board_state",
+      "parse_subtasks",
+      "send_notification"
+    ]
+  },
+  {
+    "input": "Create a Slack vote to decide whether we are ready to release.",
+    "expected_output": "A Slack vote was created in the default channel with options: Yes, No, Needs more testing. The vote is open for reactions.",
+    "expected_tools": [
+      "create_slack_vote",
+      "evaluate_slack_vote"
+    ]
+  }
+]
